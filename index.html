@@ -45,7 +45,6 @@
   body {
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(238, 244, 255, 0.55)),
       url("assets/Backdrop.png") center center / cover no-repeat,
       var(--bg-color);
     color: var(--text-primary);
@@ -61,32 +60,32 @@
   }
 
   .mlx-logo {
-    width: clamp(150px, 32vw, 220px);
+    width: clamp(220px, 45vw, 340px);
     height: auto;
     display: block;
   }
 
   .mission-title {
-    max-width: 760px;
+    max-width: 860px;
     text-align: center;
     padding: 0 8px;
   }
 
   .mission-title-main {
     display: block;
-    font-size: clamp(1.05rem, 3.4vw, 1.75rem);
-    font-weight: 700;
+    font-size: clamp(1.4rem, 4.5vw, 2.4rem);
+    font-weight: 800;
     letter-spacing: 0.01em;
-    line-height: 1.35;
+    line-height: 1.3;
     color: var(--text-primary);
   }
 
   .mission-title-date {
     display: block;
-    margin-top: 8px;
-    font-size: clamp(0.65rem, 2.1vw, 0.85rem);
-    font-weight: 600;
-    letter-spacing: 0.2em;
+    margin-top: 10px;
+    font-size: clamp(0.85rem, 2.8vw, 1.15rem);
+    font-weight: 700;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--accent);
   }
@@ -458,12 +457,11 @@
       </div>
     </div>
     <div id="stage2-sub">Time remaining until target date</div>
+    <div class="values-wrap" style="margin-top: 24px;">
+      <img src="assets/values-strip.jpg" alt="Our core values: Integrity, Ownership, Accountability, Excellence">
+    </div>
   </div>
 
-</div>
-
-<div class="values-wrap">
-  <img src="assets/values-strip.jpg" alt="Our core values: Integrity, Ownership, Accountability, Excellence">
 </div>
 
 <div id="celebration-overlay">
@@ -479,8 +477,21 @@
   (function () {
     "use strict";
 
-    // ---- Target date: current time + 100 days, calculated immediately ----
-    var TARGET_DATE = new Date(Date.now() + 100 * 24 * 60 * 60 * 1000);
+    // ---- Target date: persistent 100-day target timestamp ----
+    var TARGET_KEY = "mission2030_target_timestamp_v1";
+    function getPersistentTargetDate() {
+      var stored = localStorage.getItem(TARGET_KEY);
+      if (stored) {
+        var ts = parseInt(stored, 10);
+        if (!isNaN(ts) && ts > Date.now()) {
+          return new Date(ts);
+        }
+      }
+      var newTarget = new Date(Date.now() + 100 * 24 * 60 * 60 * 1000);
+      localStorage.setItem(TARGET_KEY, newTarget.getTime().toString());
+      return newTarget;
+    }
+    var TARGET_DATE = getPersistentTargetDate();
 
     var stage1 = document.getElementById("stage1");
     var stage2 = document.getElementById("stage2");
@@ -521,10 +532,23 @@
       return audioCtx;
     }
 
+    var celebrationAudio = null;
+    function getCelebrationAudio() {
+      if (!celebrationAudio) {
+        celebrationAudio = new Audio("assets/celebration_sound.mp3");
+        celebrationAudio.preload = "auto";
+      }
+      return celebrationAudio;
+    }
+
     function unlockAudio() {
       var ctx = getAudioContext();
       if (ctx && ctx.state === "suspended") {
         ctx.resume();
+      }
+      var audio = getCelebrationAudio();
+      if (audio) {
+        audio.load();
       }
       if (soundHint) {
         soundHint.classList.add("hidden");
@@ -547,12 +571,14 @@
     });
 
     document.addEventListener("visibilitychange", function () {
-      if (!audioCtx) return;
       if (document.hidden) {
-        if (audioCtx.state === "running") {
+        if (audioCtx && audioCtx.state === "running") {
           audioCtx.suspend();
         }
-      } else if (soundEnabled && audioCtx.state === "suspended") {
+        if (celebrationAudio && !celebrationAudio.paused) {
+          celebrationAudio.pause();
+        }
+      } else if (soundEnabled && audioCtx && audioCtx.state === "suspended") {
         audioCtx.resume();
       }
     });
@@ -561,32 +587,29 @@
       if (audioCtx && audioCtx.state !== "closed") {
         audioCtx.close();
       }
+      if (celebrationAudio) {
+        celebrationAudio.pause();
+        celebrationAudio.currentTime = 0;
+      }
     }
 
     window.addEventListener("pagehide", stopAudioCompletely);
     window.addEventListener("beforeunload", stopAudioCompletely);
 
-    // Short tick / beep played on count change
-    function playTick(isFinal) {
+    function playCelebrationAudioFile() {
       if (!soundEnabled) return;
-      var ctx = getAudioContext();
-      if (!ctx || ctx.state !== "running") return;
-
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = isFinal ? 523.25 : 880;
-
-      var now = ctx.currentTime;
-      var duration = isFinal ? 0.35 : 0.08;
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(isFinal ? 0.25 : 0.14, now + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + duration + 0.02);
+      try {
+        var audio = getCelebrationAudio();
+        if (audio) {
+          audio.currentTime = 0;
+          audio.play().catch(function (err) {
+            console.log("Audio file playback error, playing synthesized crowd cheer fallback:", err);
+            playCrowdCheer();
+          });
+        }
+      } catch (e) {
+        playCrowdCheer();
+      }
     }
 
     function createNoiseBuffer(ctx, durationSeconds) {
@@ -640,61 +663,43 @@
       }
     }
 
-    function playFanfare() {
-      if (!soundEnabled) return;
-      var ctx = getAudioContext();
-      if (!ctx || ctx.state !== "running") return;
-
-      var now = ctx.currentTime;
-      var notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-      notes.forEach(function (freq, index) {
-        var osc = ctx.createOscillator();
-        var gain = ctx.createGain();
-        osc.type = "triangle";
-        osc.frequency.value = freq;
-        var start = now + index * 0.12;
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.22, start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.38);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + 0.4);
-      });
-    }
-
-    function playCheer() {
+    // Crowd Cheer & Applause: A 4.5-second rising noise swell and randomized high-frequency claps emulating a cheering stadium crowd.
+    function playCrowdCheer() {
       if (!soundEnabled) return;
       var ctx = getAudioContext();
       if (!ctx || ctx.state !== "running") return;
 
       var now = ctx.currentTime;
 
+      // 4.5-second rising noise swell
       var whooshSource = ctx.createBufferSource();
-      whooshSource.buffer = createNoiseBuffer(ctx, 1.8);
+      whooshSource.buffer = createNoiseBuffer(ctx, 4.5);
       var whooshFilter = ctx.createBiquadFilter();
       whooshFilter.type = "bandpass";
-      whooshFilter.Q.value = 0.6;
-      whooshFilter.frequency.setValueAtTime(300, now);
-      whooshFilter.frequency.linearRampToValueAtTime(2800, now + 1.4);
+      whooshFilter.Q.value = 0.5;
+      whooshFilter.frequency.setValueAtTime(400, now);
+      whooshFilter.frequency.linearRampToValueAtTime(3200, now + 1.2);
+      whooshFilter.frequency.linearRampToValueAtTime(1500, now + 4.0);
+
       var whooshGain = ctx.createGain();
       whooshGain.gain.setValueAtTime(0.0001, now);
-      whooshGain.gain.exponentialRampToValueAtTime(0.28, now + 0.6);
-      whooshGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+      whooshGain.gain.exponentialRampToValueAtTime(0.45, now + 0.5);
+      whooshGain.gain.exponentialRampToValueAtTime(0.0001, now + 4.5);
       whooshSource.connect(whooshFilter);
       whooshFilter.connect(whooshGain);
       whooshGain.connect(ctx.destination);
       whooshSource.start(now);
-      whooshSource.stop(now + 1.85);
+      whooshSource.stop(now + 4.55);
 
-      var clapCount = 70;
+      // Randomized high-frequency claps emulating a cheering stadium crowd
+      var clapCount = 95;
       for (var i = 0; i < clapCount; i++) {
-        var t = now + 0.15 + Math.random() * 4.5;
+        var t = now + 0.1 + Math.random() * 4.2;
         playNoiseBurst(ctx, t, 0.05 + Math.random() * 0.04, {
           filterType: "highpass",
-          frequency: 1800 + Math.random() * 2500,
+          frequency: 1800 + Math.random() * 2600,
           q: 0.9,
-          peak: 0.12 + Math.random() * 0.14
+          peak: 0.15 + Math.random() * 0.18
         });
       }
     }
@@ -846,10 +851,8 @@
       unlockAudio();
       celebrationOverlay.classList.add("active");
 
-      // Play celebration sound effects: fanfare, cracker blast, crowd cheer
-      playFanfare();
-      playCrackerBurst();
-      setTimeout(playCheer, 200);
+      // Play celebration_sound.mp3 audio file
+      playCelebrationAudioFile();
 
       // Initial high-velocity paper blast from left and right bottom corners
       spawnCornerPaperBlast("left", 110);
@@ -867,7 +870,6 @@
         spawnCornerPaperBlast("left", 25);
         spawnCornerPaperBlast("right", 25);
         startConfettiLoop();
-        playCrackerBurst();
       }, 250);
 
       // Auto-close celebration overlay after 5 seconds and invoke callback
@@ -904,23 +906,31 @@
 
     var stage1Interval = setInterval(function () {
       count -= 1;
-      if (count >= 0) {
+      if (count > 0) {
         stage1Number.textContent = count;
         setRingProgress(count);
         pulseNumber();
-      }
-      if (count <= 0) {
+      } else if (count === 0) {
+        stage1Number.textContent = 0;
+        setRingProgress(0);
+        pulseNumber();
         ringProgress.classList.add("final");
-      }
-      playTick(count <= 0);
-      if (count <= 0) {
+        // Count hit 0: Start Stage 2 100-day timer immediately & trigger celebration
         clearInterval(stage1Interval);
-        // Stage 1 countdown hit 0! Show paper blast animation from left & right bottom corners for 5s with sound
+        startStage2Timer();
         triggerCelebration(function () {
           transitionToStage2();
         });
       }
     }, 1000);
+
+    var stage2Interval = null;
+    function startStage2Timer() {
+      updateStage2();
+      if (!stage2Interval) {
+        stage2Interval = setInterval(updateStage2, 1000);
+      }
+    }
 
     function transitionToStage2() {
       var switched = false;
@@ -931,8 +941,7 @@
         stage1.classList.add("hidden");
         stage2.classList.remove("hidden");
         stage2.classList.add("fade-in");
-        updateStage2();
-        setInterval(updateStage2, 1000);
+        startStage2Timer();
       }
 
       stage1.classList.add("fade-out");
@@ -942,7 +951,6 @@
     }
 
     // ---------------- Stage 2: Days / Hours / Minutes / Seconds ----------------
-    var lastStage2Seconds = null;
     var celebrationTriggered = false;
 
     function updateStage2() {
@@ -971,11 +979,6 @@
       hoursEl.textContent = pad(hours);
       minutesEl.textContent = pad(minutes);
       secondsEl.textContent = pad(seconds);
-
-      if (seconds !== lastStage2Seconds) {
-        lastStage2Seconds = seconds;
-        playTick(false);
-      }
     }
 
     // ---------------- Service worker registration ----------------
