@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Countdown</title>
+<title>Launch of Mission 2030 - Mission Mode (100 Days) on 10th Aug 2026</title>
 <meta name="theme-color" content="#0a0a0f">
 <meta name="description" content="A dual-stage countdown Progressive Web App">
 <link rel="manifest" href="manifest.json">
@@ -41,11 +41,38 @@
     min-height: 100vh;
     min-height: 100dvh;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: clamp(20px, 5vw, 48px);
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
     padding: 24px;
+  }
+
+  .mission-title {
+    max-width: 760px;
+    text-align: center;
+    padding: 0 8px;
+  }
+
+  .mission-title-main {
+    display: block;
+    font-size: clamp(1.05rem, 3.4vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.35;
+    color: var(--text-primary);
+  }
+
+  .mission-title-date {
+    display: block;
+    margin-top: 8px;
+    font-size: clamp(0.65rem, 2.1vw, 0.85rem);
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
   }
 
   #app {
@@ -170,6 +197,11 @@
 </style>
 </head>
 <body>
+
+<header class="mission-title">
+  <span class="mission-title-main">Launch of Mission 2030 - Mission Mode (100 Days)</span>
+  <span class="mission-title-date">on 10th Aug 2026</span>
+</header>
 
 <div id="app">
 
