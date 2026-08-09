@@ -62,6 +62,16 @@
       padding: 32px 24px;
     }
 
+    /* On mobile/tablet the tall, narrow viewport crops most of this wide
+       backdrop under "cover" -- anchor it to the bottom-right (where the
+       globe/NASDAQ building sit) instead of the center so that detail stays
+       visible rather than being cropped away. */
+    @media (max-width: 1024px) {
+      body {
+        background-position: right bottom;
+      }
+    }
+
     .mlx-logo {
       width: clamp(220px, 45vw, 250px);
       height: auto;
@@ -74,6 +84,38 @@
       display: block;
       margin: 0 auto 14px auto;
       filter: drop-shadow(0 4px 14px rgba(18, 62, 158, 0.2));
+    }
+
+    /* ---------- Liftoff hero-logo sequence ---------- */
+
+    .hero-logo {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: clamp(220px, 46vw, 380px);
+      height: auto;
+      transform: translate(-50%, -50%) scale(0.82);
+      opacity: 0;
+      z-index: 1300;
+      pointer-events: none;
+      filter: drop-shadow(0 18px 50px rgba(18, 62, 158, 0.4));
+      transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Lands big and prominent -- the "zoom out" that follows (driven inline
+       by JS once the real logo's position is known) shrinks it down from
+       here, so the motion clearly reads as big -> smaller -> settled. */
+    .hero-logo.pop-in {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.15);
+    }
+
+    .hero-logo.flying {
+      transition: opacity 0.5s ease, transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .hero-logo.fly-out {
+      opacity: 0;
     }
 
     .mission-title {
@@ -101,6 +143,15 @@
       color: var(--accent);
     }
 
+    /* Renders "10th" with a proper raised ordinal suffix; overrides the
+       parent's uppercase transform so it stays "th", not "TH". */
+    .mission-title-date .ordinal-suffix {
+      font-size: 0.65em;
+      vertical-align: super;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
     /* ---------- Pre-countdown hide & Initial Render Entrance Animation ---------- */
 
     .pre-countdown-hide {
@@ -109,17 +160,17 @@
     }
 
     .initial-render-anim {
-      animation: initialRenderReveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation: initialRenderReveal 1.05s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
     @keyframes initialRenderReveal {
       0% {
         opacity: 0;
-        transform: translateY(35px) scale(0.9);
-        filter: blur(10px);
+        transform: translateY(46px) scale(0.92);
+        filter: blur(8px);
       }
 
-      60% {
+      55% {
         opacity: 1;
         filter: blur(0);
       }
@@ -481,12 +532,14 @@
 
   <canvas id="confetti-canvas"></canvas>
 
+  <img id="hero-logo" class="hero-logo" src="assets/Mission_2030_logo.png" alt="">
+
   <img class="mlx-logo pre-countdown-hide" src="assets/mlx_logo.png" alt="MindlogicX - Architecting the Future">
 
   <header class="mission-title pre-countdown-hide">
     <img class="mission-2030-logo" src="assets/Mission_2030_logo.png" alt="Mission 2030 Logo">
     <span class="mission-title-main">Mission Mode (100 Days)</span>
-    <span class="mission-title-date">on 10th Aug 2026</span>
+    <span class="mission-title-date">on 10<sup class="ordinal-suffix">th</sup> Aug 2026</span>
   </header>
 
   <div id="app">
@@ -582,11 +635,6 @@
         return audioCtx;
       }
 
-      var fireworksAudio = new Audio("assets/fireworks_sound.mp3");
-      fireworksAudio.preload = "auto";
-      fireworksAudio.muted = false;
-      fireworksAudio.volume = 1.0;
-
       var countdownVoiceAudio = new Audio("assets/countdown_voice.mp3");
       countdownVoiceAudio.preload = "auto";
       countdownVoiceAudio.muted = false;
@@ -610,9 +658,9 @@
           if (audioCtx && audioCtx.state === "running") {
             audioCtx.suspend();
           }
-          [fireworksAudio, countdownVoiceAudio].forEach(function (aud) {
-            if (aud && !aud.paused) aud.pause();
-          });
+          if (countdownVoiceAudio && !countdownVoiceAudio.paused) {
+            countdownVoiceAudio.pause();
+          }
         } else if (soundEnabled && audioCtx && audioCtx.state === "suspended") {
           audioCtx.resume();
         }
@@ -622,37 +670,14 @@
         if (audioCtx && audioCtx.state !== "closed") {
           audioCtx.close();
         }
-        [fireworksAudio, countdownVoiceAudio].forEach(function (aud) {
-          if (aud) {
-            aud.pause();
-            aud.currentTime = 0;
-          }
-        });
+        if (countdownVoiceAudio) {
+          countdownVoiceAudio.pause();
+          countdownVoiceAudio.currentTime = 0;
+        }
       }
 
       window.addEventListener("pagehide", stopAudioCompletely);
       window.addEventListener("beforeunload", stopAudioCompletely);
-
-      function playFireworksAudioFile() {
-        if (!soundEnabled) return;
-        try {
-          var audio = fireworksAudio;
-          if (audio) {
-            audio.muted = false;
-            audio.volume = 1.0;
-            audio.currentTime = 0;
-            var promise = audio.play();
-            if (promise !== undefined) {
-              promise.catch(function (err) {
-                console.log("Fireworks sound info:", err);
-                playCrackerBurst();
-              });
-            }
-          }
-        } catch (e) {
-          playCrackerBurst();
-        }
-      }
 
       function playCountdownVoiceAudioFile() {
         if (!soundEnabled || !countdownVoiceAudio) return;
@@ -668,69 +693,6 @@
           }
         } catch (e) { }
       }
-
-      function stopCountdownVoiceAudioFile() {
-        if (!countdownVoiceAudio) return;
-        countdownVoiceAudio.pause();
-        countdownVoiceAudio.currentTime = 0;
-      }
-
-      function createNoiseBuffer(ctx, durationSeconds) {
-        var bufferSize = Math.max(1, Math.floor(ctx.sampleRate * durationSeconds));
-        var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        var data = buffer.getChannelData(0);
-        for (var i = 0; i < bufferSize; i++) {
-          data[i] = Math.random() * 2 - 1;
-        }
-        return buffer;
-      }
-
-      function playNoiseBurst(ctx, startTime, durationSeconds, opts) {
-        opts = opts || {};
-        var source = ctx.createBufferSource();
-        source.buffer = createNoiseBuffer(ctx, durationSeconds);
-
-        var filter = ctx.createBiquadFilter();
-        filter.type = opts.filterType || "bandpass";
-        filter.frequency.value = opts.frequency || 1200;
-        filter.Q.value = opts.q || 1;
-
-        var gain = ctx.createGain();
-        var peak = opts.peak != null ? opts.peak : 0.5;
-        gain.gain.setValueAtTime(0.0001, startTime);
-        gain.gain.exponentialRampToValueAtTime(peak, startTime + 0.005);
-        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + durationSeconds);
-
-        source.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-        source.start(startTime);
-        source.stop(startTime + durationSeconds + 0.02);
-      }
-
-      function playCrackerBurst() {
-        if (!soundEnabled) return;
-        var ctx = getAudioContext();
-        if (!ctx || ctx.state !== "running") return;
-
-        var now = ctx.currentTime;
-        var pops = 8;
-        for (var i = 0; i < pops; i++) {
-          var t = now + i * (0.07 + Math.random() * 0.08);
-          playNoiseBurst(ctx, t, 0.1 + Math.random() * 0.08, {
-            filterType: "bandpass",
-            frequency: 800 + Math.random() * 2400,
-            q: 0.7,
-            peak: 0.35 + Math.random() * 0.25
-          });
-        }
-      }
-
-      // Audio countdown beeps removed per user request
-      function playCountdownBeep(count) { }
-
-      // Fireworks Blast Sound removed per user request
-      function playFireworkBlastSound() { }
 
       // =========================================================================
       // Canvas Fireworks Explosion Engine
@@ -890,8 +852,6 @@
         // page content stays visible underneath the fireworks the whole time.
         celebrationOverlay.classList.add("active");
 
-        playFireworksAudioFile();
-
         // Initial volley of fireworks rockets launching from left and right bottom corners
         spawnFireworkRocket("left");
         spawnFireworkRocket("right");
@@ -935,34 +895,94 @@
         stage1Number.classList.add("pulse");
       }
 
+      // Moves the big centered hero logo down into its real slot inside the
+      // header, then hands off to the real (now correctly-positioned,
+      // static) logo with a quick opacity crossfade -- no visible jump.
+      function runHeroLogoSequence(targetRect, missionLogoEl) {
+        var hero = document.getElementById("hero-logo");
+
+        if (!hero || !targetRect || targetRect.width === 0) {
+          if (missionLogoEl) missionLogoEl.style.opacity = "1";
+          return;
+        }
+
+        requestAnimationFrame(function () {
+          hero.classList.add("pop-in");
+        });
+
+        setTimeout(function () {
+          var heroRect = hero.getBoundingClientRect();
+          var dx = (targetRect.left + targetRect.width / 2) - (heroRect.left + heroRect.width / 2);
+          var dy = (targetRect.top + targetRect.height / 2) - (heroRect.top + heroRect.height / 2);
+          var scale = targetRect.width / heroRect.width;
+
+          // Switch to the slower "flying" transition before changing the
+          // transform, so the zoom-out/settle reads as a smooth, deliberate
+          // motion rather than snapping at the pop-in's faster speed.
+          hero.classList.add("flying");
+          void hero.offsetWidth;
+          hero.style.transform =
+            "translate(-50%, -50%) translate(" + dx + "px, " + dy + "px) scale(" + scale + ")";
+
+          setTimeout(function () {
+            hero.classList.add("fly-out");
+            if (missionLogoEl) {
+              missionLogoEl.style.transition = "opacity 0.25s ease";
+              missionLogoEl.style.opacity = "1";
+            }
+          }, 750);
+        }, 950);
+      }
+
       function revealPageElementsWithAnimation() {
         var hiddenEls = document.querySelectorAll(".pre-countdown-hide");
         hiddenEls.forEach(function (el) {
           el.classList.remove("pre-countdown-hide");
         });
 
+        // Measure the real logo's true resting position now, before any
+        // animation classes are applied (so the rect isn't skewed by a
+        // pending transform), then hide it until the hero logo lands on it.
+        var missionLogoEl = document.querySelector(".mission-2030-logo");
+        var missionLogoRect = missionLogoEl ? missionLogoEl.getBoundingClientRect() : null;
+        if (missionLogoEl) {
+          missionLogoEl.style.opacity = "0";
+        }
+
         var logoEl = document.querySelector(".mlx-logo");
-        var titleEl = document.querySelector(".mission-title");
+        var titleMainEl = document.querySelector(".mission-title-main");
+        var titleDateEl = document.querySelector(".mission-title-date");
         var stage2El = document.getElementById("stage2");
 
+        // The header itself appears instantly at its final position (no
+        // motion) -- only its individual pieces animate, so nothing fights
+        // with the hero logo's landing spot. Delays start right as the hero
+        // logo lands (~1.7s in) and cascade onward with a wider, gentler
+        // stagger between each piece.
         if (logoEl) {
-          logoEl.style.animationDelay = "0.05s";
+          logoEl.style.animationDelay = "1.7s";
           logoEl.classList.add("initial-render-anim");
         }
-        if (titleEl) {
-          titleEl.style.animationDelay = "0.20s";
-          titleEl.classList.add("initial-render-anim");
+        if (titleMainEl) {
+          titleMainEl.style.animationDelay = "1.86s";
+          titleMainEl.classList.add("initial-render-anim");
+        }
+        if (titleDateEl) {
+          titleDateEl.style.animationDelay = "2.02s";
+          titleDateEl.classList.add("initial-render-anim");
         }
         if (stage2El) {
-          stage2El.style.animationDelay = "0.35s";
+          stage2El.style.animationDelay = "2.18s";
           stage2El.classList.add("initial-render-anim");
         }
 
         var childNodes = document.querySelectorAll(".time-block, .values-wrap");
         childNodes.forEach(function (node, index) {
-          node.style.animationDelay = (0.45 + index * 0.1) + "s";
+          node.style.animationDelay = (2.34 + index * 0.16) + "s";
           node.classList.add("initial-render-anim");
         });
+
+        runHeroLogoSequence(missionLogoRect, missionLogoEl);
       }
 
       var count = STAGE1_START;
@@ -985,16 +1005,20 @@
             stage1Number.textContent = count;
             setRingProgress(count);
             pulseNumber();
+            if (count === 1) {
+              // Start the 100-day mission timer ticking a beat early, right
+              // as the countdown reaches 1, so it's already live by liftoff.
+              startStage2Timer();
+            }
           } else if (count === 0) {
             stage1Number.textContent = 0;
             setRingProgress(0);
             pulseNumber();
             ringProgress.classList.add("final");
-            // Count hit 0: stop the countdown voice, reveal the main content
-            // immediately, and layer fireworks on top of it (no black screen).
+            // Count hit 0: let the countdown voice keep playing to the end
+            // (it's longer than the visible countdown), reveal the main
+            // content immediately, and layer fireworks on top of it.
             clearInterval(stage1Interval);
-            stopCountdownVoiceAudioFile();
-            startStage2Timer();
             revealPageElementsWithAnimation();
             transitionToStage2();
             triggerCelebration();
@@ -1037,7 +1061,8 @@
           stage1.classList.add("hidden");
           stage2.classList.remove("hidden");
           stage2.classList.add("fade-in");
-          startStage2Timer();
+          // startStage2Timer() already ran when the count hit 1 -- no need
+          // to call it again here.
         }
 
         stage1.classList.add("fade-out");

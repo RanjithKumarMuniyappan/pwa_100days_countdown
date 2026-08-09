@@ -4,7 +4,7 @@
  * once it has been visited/installed at least once.
  */
 
-const CACHE_NAME = "countdown-pwa-cache-v13";
+const CACHE_NAME = "countdown-pwa-cache-v18";
 const CACHED_URLS = [
   "./index.html",
   "./manifest.json",
@@ -12,8 +12,7 @@ const CACHED_URLS = [
   "./assets/mlx_logo.png",
   "./assets/Mission_2030_logo.png",
   "./assets/values-strip.jpg",
-  "./assets/countdown_voice.mp3",
-  "./assets/fireworks_sound.mp3"
+  "./assets/countdown_voice.mp3"
 ];
 
 self.addEventListener("install", (event) => {
