@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Mission Mode (100 Days) on 10th Aug 2026</title>
   <meta name="theme-color" content="#eef4ff">
-  <meta name="description" content="A dual-stage countdown Progressive Web App">
+  <meta name="description" content="A Mission 2030 countdown Progressive Web App">
   <link rel="manifest" href="manifest.json">
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23ffffff'/%3E%3Ctext x='50' y='64' font-size='48' text-anchor='middle' fill='%23123e9e' font-family='sans-serif'%3E%E2%8F%B1%3C/text%3E%3C/svg%3E">
@@ -207,10 +207,6 @@
       animation: fadeOut 0.6s ease forwards;
     }
 
-    .fade-in {
-      animation: fadeIn 0.7s ease forwards;
-    }
-
     @keyframes fadeOut {
       from {
         opacity: 1;
@@ -220,18 +216,6 @@
       to {
         opacity: 0;
         transform: scale(0.92);
-      }
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: scale(0.96);
-      }
-
-      to {
-        opacity: 1;
-        transform: scale(1);
       }
     }
 
@@ -952,7 +936,6 @@
         var logoEl = document.querySelector(".mlx-logo");
         var titleMainEl = document.querySelector(".mission-title-main");
         var titleDateEl = document.querySelector(".mission-title-date");
-        var stage2El = document.getElementById("stage2");
 
         // The header itself appears instantly at its final position (no
         // motion) -- only its individual pieces animate, so nothing fights
@@ -971,14 +954,17 @@
           titleDateEl.style.animationDelay = "2.02s";
           titleDateEl.classList.add("initial-render-anim");
         }
-        if (stage2El) {
-          stage2El.style.animationDelay = "2.18s";
-          stage2El.classList.add("initial-render-anim");
-        }
 
-        var childNodes = document.querySelectorAll(".time-block, .values-wrap");
-        childNodes.forEach(function (node, index) {
-          node.style.animationDelay = (2.34 + index * 0.16) + "s";
+        // #stage2 itself gets no animation of its own (same pattern as the
+        // header) -- every piece inside it animates individually, in
+        // document order, so "Countdown" and "Time remaining..." cascade in
+        // right alongside the day/hour/min/sec cards instead of riding on
+        // (and getting lost in) the container's own motion.
+        var stage2CascadeEls = document.querySelectorAll(
+          "#stage2-title, .time-block, #stage2-sub, .values-wrap"
+        );
+        stage2CascadeEls.forEach(function (node, index) {
+          node.style.animationDelay = (2.18 + index * 0.16) + "s";
           node.classList.add("initial-render-anim");
         });
 
@@ -1005,11 +991,6 @@
             stage1Number.textContent = count;
             setRingProgress(count);
             pulseNumber();
-            if (count === 1) {
-              // Start the 100-day mission timer ticking a beat early, right
-              // as the countdown reaches 1, so it's already live by liftoff.
-              startStage2Timer();
-            }
           } else if (count === 0) {
             stage1Number.textContent = 0;
             setRingProgress(0);
@@ -1036,7 +1017,6 @@
       var ringWrapEl = document.querySelector(".ring-wrap");
 
       launchButton.addEventListener("click", function () {
-        TARGET_DATE = getFreshTargetDate();
         unlockAudio();
         launchButton.classList.add("pre-launch-hide");
         stage1LabelEl.classList.remove("pre-launch-hide");
@@ -1060,9 +1040,12 @@
           switched = true;
           stage1.classList.add("hidden");
           stage2.classList.remove("hidden");
-          stage2.classList.add("fade-in");
-          // startStage2Timer() already ran when the count hit 1 -- no need
-          // to call it again here.
+          // Set the 100-day target -- and start ticking -- right as the grid
+          // actually becomes visible, so the very first frame the user sees
+          // reads a clean "00" seconds instead of already having a few
+          // seconds shaved off from an earlier reference point.
+          TARGET_DATE = getFreshTargetDate();
+          startStage2Timer();
         }
 
         stage1.classList.add("fade-out");
@@ -1090,7 +1073,10 @@
           return;
         }
 
-        var totalSeconds = Math.floor(diff / 1000);
+        // Round rather than floor: TARGET_DATE and this first "now" are set
+        // only milliseconds apart, and flooring would always shave that
+        // sliver off into a stray "59" on the very first rendered frame.
+        var totalSeconds = Math.round(diff / 1000);
         var days = Math.floor(totalSeconds / 86400);
         var hours = Math.floor((totalSeconds % 86400) / 3600);
         var minutes = Math.floor((totalSeconds % 3600) / 60);

@@ -1,10 +1,10 @@
 /*
- * Service worker for the Dual-Stage Countdown PWA.
+ * Service worker for the Mission 2030 Countdown PWA.
  * Caches index.html and manifest.json so the app can load and run offline
  * once it has been visited/installed at least once.
  */
 
-const CACHE_NAME = "countdown-pwa-cache-v18";
+const CACHE_NAME = "countdown-pwa-cache-v19";
 const CACHED_URLS = [
   "./index.html",
   "./manifest.json",

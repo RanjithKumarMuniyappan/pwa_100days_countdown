@@ -1,7 +1,7 @@
 {
-  "name": "Dual-Stage Countdown",
+  "name": "Mission 2030",
   "short_name": "Countdown",
-  "description": "A dual-stage countdown app: a quick 10-second intro countdown followed by a live 100-day Days/Hours/Minutes/Seconds countdown.",
+  "description": "A mission 2030 : a quick 10-second intro countdown followed by a live 100-day Days/Hours/Minutes/Seconds countdown.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
