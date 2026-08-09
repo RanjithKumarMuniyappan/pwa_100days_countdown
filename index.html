@@ -63,13 +63,13 @@
     }
 
     .mlx-logo {
-      width: clamp(220px, 45vw, 340px);
+      width: clamp(220px, 45vw, 250px);
       height: auto;
       display: block;
     }
 
     .mission-2030-logo {
-      width: clamp(140px, 35vw, 240px);
+      width: clamp(140px, 35vw, 360px);
       height: auto;
       display: block;
       margin: 0 auto 14px auto;
@@ -582,11 +582,6 @@
         return audioCtx;
       }
 
-      var celebrationAudio = new Audio("assets/celebration_sound.mp3");
-      celebrationAudio.preload = "auto";
-      celebrationAudio.muted = false;
-      celebrationAudio.volume = 1.0;
-
       var fireworksAudio = new Audio("assets/fireworks_sound.mp3");
       fireworksAudio.preload = "auto";
       fireworksAudio.muted = false;
@@ -596,10 +591,6 @@
       countdownVoiceAudio.preload = "auto";
       countdownVoiceAudio.muted = false;
       countdownVoiceAudio.volume = 1.0;
-
-      function getCelebrationAudio() {
-        return celebrationAudio;
-      }
 
       function unlockAudio() {
         var ctx = getAudioContext();
@@ -619,7 +610,7 @@
           if (audioCtx && audioCtx.state === "running") {
             audioCtx.suspend();
           }
-          [celebrationAudio, fireworksAudio, countdownVoiceAudio].forEach(function (aud) {
+          [fireworksAudio, countdownVoiceAudio].forEach(function (aud) {
             if (aud && !aud.paused) aud.pause();
           });
         } else if (soundEnabled && audioCtx && audioCtx.state === "suspended") {
@@ -631,7 +622,7 @@
         if (audioCtx && audioCtx.state !== "closed") {
           audioCtx.close();
         }
-        [celebrationAudio, fireworksAudio, countdownVoiceAudio].forEach(function (aud) {
+        [fireworksAudio, countdownVoiceAudio].forEach(function (aud) {
           if (aud) {
             aud.pause();
             aud.currentTime = 0;
@@ -641,27 +632,6 @@
 
       window.addEventListener("pagehide", stopAudioCompletely);
       window.addEventListener("beforeunload", stopAudioCompletely);
-
-      function playCelebrationAudioFile() {
-        if (!soundEnabled) return;
-        try {
-          var audio = getCelebrationAudio();
-          if (audio) {
-            audio.muted = false;
-            audio.volume = 1.0;
-            audio.currentTime = 0;
-            var promise = audio.play();
-            if (promise !== undefined) {
-              promise.catch(function (err) {
-                console.log("Celebration sound info:", err);
-                playCrowdCheer();
-              });
-            }
-          }
-        } catch (e) {
-          playCrowdCheer();
-        }
-      }
 
       function playFireworksAudioFile() {
         if (!soundEnabled) return;
@@ -752,47 +722,6 @@
             frequency: 800 + Math.random() * 2400,
             q: 0.7,
             peak: 0.35 + Math.random() * 0.25
-          });
-        }
-      }
-
-      // Crowd Cheer & Applause: A 4.5-second rising noise swell and randomized high-frequency claps emulating a cheering stadium crowd.
-      function playCrowdCheer() {
-        if (!soundEnabled) return;
-        var ctx = getAudioContext();
-        if (!ctx || ctx.state !== "running") return;
-
-        var now = ctx.currentTime;
-
-        // 4.5-second rising noise swell
-        var whooshSource = ctx.createBufferSource();
-        whooshSource.buffer = createNoiseBuffer(ctx, 4.5);
-        var whooshFilter = ctx.createBiquadFilter();
-        whooshFilter.type = "bandpass";
-        whooshFilter.Q.value = 0.5;
-        whooshFilter.frequency.setValueAtTime(400, now);
-        whooshFilter.frequency.linearRampToValueAtTime(3200, now + 1.2);
-        whooshFilter.frequency.linearRampToValueAtTime(1500, now + 4.0);
-
-        var whooshGain = ctx.createGain();
-        whooshGain.gain.setValueAtTime(0.0001, now);
-        whooshGain.gain.exponentialRampToValueAtTime(0.45, now + 0.5);
-        whooshGain.gain.exponentialRampToValueAtTime(0.0001, now + 4.5);
-        whooshSource.connect(whooshFilter);
-        whooshFilter.connect(whooshGain);
-        whooshGain.connect(ctx.destination);
-        whooshSource.start(now);
-        whooshSource.stop(now + 4.55);
-
-        // Randomized high-frequency claps emulating a cheering stadium crowd
-        var clapCount = 95;
-        for (var i = 0; i < clapCount; i++) {
-          var t = now + 0.1 + Math.random() * 4.2;
-          playNoiseBurst(ctx, t, 0.05 + Math.random() * 0.04, {
-            filterType: "highpass",
-            frequency: 1800 + Math.random() * 2600,
-            q: 0.9,
-            peak: 0.15 + Math.random() * 0.18
           });
         }
       }
@@ -961,7 +890,6 @@
         // page content stays visible underneath the fireworks the whole time.
         celebrationOverlay.classList.add("active");
 
-        playCelebrationAudioFile();
         playFireworksAudioFile();
 
         // Initial volley of fireworks rockets launching from left and right bottom corners
